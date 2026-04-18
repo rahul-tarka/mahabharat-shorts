@@ -1,0 +1,25 @@
+# ── Python ──────────────────────────────────────
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.Python
+
+# ── Secrets (NEVER commit these) ────────────────
+config/.env
+config/token.json
+config/client_secret.json
+
+# ── Generated output (can be large) ─────────────
+output/
+logs/
+
+# ── macOS ────────────────────────────────────────
+.DS_Store
+.AppleDouble
+
+# ── IDEs ─────────────────────────────────────────
+.vscode/
+.idea/
+*.swp

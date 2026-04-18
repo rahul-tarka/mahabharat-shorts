@@ -1,0 +1,139 @@
+name: Daily Mahabharat Shorts Pipeline
+
+on:
+  # Run daily at 2:00 AM UTC (7:30 AM IST)
+  schedule:
+    - cron: "0 2 * * *"
+
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      episode:
+        description: "Episode number (leave blank for auto-next)"
+        required: false
+        type: string
+      skip_upload:
+        description: "Skip YouTube upload (for testing)"
+        required: false
+        type: boolean
+        default: false
+      from_step:
+        description: "Start from step (1-7)"
+        required: false
+        default: "1"
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      # ── Checkout repo ────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Setup Python ─────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # ── Install system deps ──────────────────────────────────
+      - name: Install FFmpeg & fonts
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg fonts-noto
+          mkdir -p ffmpeg/fonts
+          cp /usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf \
+             ffmpeg/fonts/NotoSansDevanagari-Bold.ttf 2>/dev/null || \
+          curl -sL "https://github.com/google/fonts/raw/main/ofl/notosansdevanagari/NotoSansDevanagari-Bold.ttf" \
+             -o ffmpeg/fonts/NotoSansDevanagari-Bold.ttf
+
+      # ── Install Python deps ──────────────────────────────────
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # ── Write config/.env from GitHub Secrets ───────────────
+      - name: Write environment variables
+        run: |
+          mkdir -p config logs output
+          cat > config/.env << 'EOF'
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          IDEOGRAM_API_KEY=${{ secrets.IDEOGRAM_API_KEY }}
+          ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}
+          SUNO_API_KEY=${{ secrets.SUNO_API_KEY }}
+          OUTPUT_DIR=output
+          LOG_DIR=logs
+          PUBLISH_TIME_UTC=02:30
+          EOF
+
+      # ── Write YouTube credentials from secrets ───────────────
+      - name: Write YouTube credentials
+        run: |
+          echo '${{ secrets.YOUTUBE_TOKEN_JSON }}' > config/token.json
+          echo '${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}' > config/client_secret.json
+        env:
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          YOUTUBE_CLIENT_SECRET_JSON: ${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}
+
+      # ── Run the pipeline ─────────────────────────────────────
+      - name: Run Mahabharat Shorts Pipeline
+        id: pipeline
+        run: |
+          # Determine episode number
+          if [ -n "${{ github.event.inputs.episode }}" ]; then
+            EP_ARG="--episode ${{ github.event.inputs.episode }}"
+          else
+            EP_ARG="--next"
+          fi
+
+          # Skip upload flag
+          if [ "${{ github.event.inputs.skip_upload }}" = "true" ]; then
+            SKIP="--skip-upload"
+          else
+            SKIP=""
+          fi
+
+          # From-step flag
+          FROM="${{ github.event.inputs.from_step }}"
+          FROM="${FROM:-1}"
+
+          python3 scripts/run_pipeline.py $EP_ARG $SKIP --from-step $FROM
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      # ── Upload pipeline artifacts ─────────────────────────────
+      - name: Upload episode artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: episode-output-${{ github.run_number }}
+          path: |
+            output/
+            logs/
+          retention-days: 7
+
+      # ── Commit updated episode_plan.json ─────────────────────
+      - name: Commit updated episode plan
+        if: success()
+        run: |
+          git config --global user.name "Mahabharat Bot"
+          git config --global user.email "bot@mahabharat-shorts.auto"
+          git add config/episode_plan.json
+          git diff --staged --quiet || git commit -m "chore: mark episode as done [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Notify on failure ─────────────────────────────────────
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Pipeline failed for run #${{ github.run_number }}"
+          echo "Check logs in GitHub Actions artifacts"
+          # Optional: add Slack/Discord webhook here
+          # curl -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+          #   -H 'Content-type: application/json' \
+          #   --data '{"text":"❌ Mahabharat pipeline FAILED. Check GitHub Actions."}'

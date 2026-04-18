@@ -1,0 +1,96 @@
+{
+  "series": "Mahabharat Cinematic Shorts",
+  "total_planned": 30,
+  "episodes": [
+    {
+      "episode": 1,
+      "title_hint": "Kurukshetra dawn — Yudhishthira breaks",
+      "character_focus": "Yudhishthira",
+      "arc": "Kurukshetra War - Day 1",
+      "emotional_core": "grief vs duty",
+      "cliffhanger_setup": "Yudhishthira walks toward enemy side barefoot",
+      "status": "done"
+    },
+    {
+      "episode": 2,
+      "title_hint": "Yudhishthira bows to Bhishma before battle",
+      "character_focus": "Yudhishthira, Bhishma",
+      "arc": "Kurukshetra War - Day 1",
+      "emotional_core": "reverence vs war",
+      "cliffhanger_setup": "Bhishma grants a boon — what does he ask?",
+      "status": "pending"
+    },
+    {
+      "episode": 3,
+      "title_hint": "Bhishma's boon revealed — the secret weapon",
+      "character_focus": "Bhishma, Arjuna",
+      "arc": "Kurukshetra War - Day 1",
+      "emotional_core": "sacrifice",
+      "cliffhanger_setup": "Arjuna raises Gandiva against his grandfather",
+      "status": "pending"
+    },
+    {
+      "episode": 4,
+      "title_hint": "Karna watches from Duryodhana's side",
+      "character_focus": "Karna",
+      "arc": "Karna's silent war",
+      "emotional_core": "loyalty vs honor",
+      "cliffhanger_setup": "Karna sees Kunti on the battlefield",
+      "status": "pending"
+    },
+    {
+      "episode": 5,
+      "title_hint": "Kunti meets Karna in secret",
+      "character_focus": "Karna, Kunti",
+      "arc": "Karna's silent war",
+      "emotional_core": "abandoned son meets mother",
+      "cliffhanger_setup": "Karna makes a promise that will cost him everything",
+      "status": "pending"
+    },
+    {
+      "episode": 6,
+      "title_hint": "Draupadi's vow — hair unbound until revenge",
+      "character_focus": "Draupadi",
+      "arc": "Draupadi's fire",
+      "emotional_core": "humiliation to power",
+      "cliffhanger_setup": "Draupadi appears on the battlefield",
+      "status": "pending"
+    },
+    {
+      "episode": 7,
+      "title_hint": "Abhimanyu enters the Chakravyuh",
+      "character_focus": "Abhimanyu",
+      "arc": "Abhimanyu's last stand",
+      "emotional_core": "fearless youth vs impossible odds",
+      "cliffhanger_setup": "The trap closes — 7 warriors surround one boy",
+      "status": "pending"
+    },
+    {
+      "episode": 8,
+      "title_hint": "Arjuna learns his son is dead",
+      "character_focus": "Arjuna, Krishna",
+      "arc": "Abhimanyu's last stand",
+      "emotional_core": "father's grief ignites vengeance",
+      "cliffhanger_setup": "Arjuna swears to kill Jayadratha by sunset or burn himself",
+      "status": "pending"
+    },
+    {
+      "episode": 9,
+      "title_hint": "Krishna hides the sun — the impossible sunset",
+      "character_focus": "Krishna",
+      "arc": "Krishna's divine intervention",
+      "emotional_core": "divine cosmic play",
+      "cliffhanger_setup": "Jayadratha laughs — then the sun reappears",
+      "status": "pending"
+    },
+    {
+      "episode": 10,
+      "title_hint": "Bhishma falls — the grandfather chooses his moment",
+      "character_focus": "Bhishma, Shikhandi",
+      "arc": "Fall of the elders",
+      "emotional_core": "chosen death with dignity",
+      "cliffhanger_setup": "Bhishma on the bed of arrows — asks for a pillow",
+      "status": "pending"
+    }
+  ]
+}
