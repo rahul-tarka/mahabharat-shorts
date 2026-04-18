@@ -49,6 +49,9 @@ echo "   Found ${SCENE_COUNT} scene images"
 
 mkdir -p "${VIDEO_DIR}/clips" "${VIDEO_DIR}/tmp"
 
+# Absolute path to clips dir — used in concat list so ffmpeg can always find them
+CLIPS_ABS="$(pwd)/${VIDEO_DIR}/clips"
+
 # ── Step A: Create animated clip from each image (Ken Burns effect) ──
 echo ""
 echo "📽️  Step A: Animating ${SCENE_COUNT} scenes (Ken Burns + zoom)..."
@@ -91,7 +94,7 @@ CONCAT_LIST="${VIDEO_DIR}/tmp/concat.txt"
 for i in $(seq 1 "$SCENE_COUNT"); do
   CLIP="${VIDEO_DIR}/clips/clip_$(printf '%02d' $i).mp4"
   if [ -f "$CLIP" ]; then
-    echo "file '../../clips/clip_$(printf '%02d' $i).mp4'" >> "$CONCAT_LIST"
+    echo "file '${CLIPS_ABS}/clip_$(printf '%02d' $i).mp4'" >> "$CONCAT_LIST"
   fi
 done
 
