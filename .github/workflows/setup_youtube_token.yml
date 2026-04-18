@@ -1,40 +1,40 @@
 name: Setup YouTube Token (One-time)
 
 on:
-  workflow_dispatch:
-    inputs:
-      auth_code:
-        description: "Paste the 'code' value from the redirect URL"
-        required: true
-        type: string
+  push:
+    paths:
+      - "config/auth_code.txt"
 
 jobs:
   exchange-token:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Exchange auth code for tokens
         run: |
-          echo "Exchanging authorization code for tokens..."
+          AUTH_CODE=$(cat config/auth_code.txt | tr -d '[:space:]')
+          echo "Exchanging auth code..."
 
           RESPONSE=$(curl -s -X POST https://oauth2.googleapis.com/token \
             -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "code=${{ github.event.inputs.auth_code }}" \
+            -d "code=${AUTH_CODE}" \
             -d "client_id=${{ secrets.YOUTUBE_CLIENT_ID }}" \
             -d "client_secret=${{ secrets.YOUTUBE_CLIENT_SECRET }}" \
             -d "redirect_uri=http://localhost" \
             -d "grant_type=authorization_code")
 
-          ACCESS_TOKEN=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token','ERROR'))")
-          REFRESH_TOKEN=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('refresh_token','ERROR'))")
+          REFRESH_TOKEN=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('refresh_token',''))" 2>/dev/null)
+          ACCESS_TOKEN=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token',''))" 2>/dev/null)
 
-          if [ "$REFRESH_TOKEN" = "ERROR" ] || [ -z "$REFRESH_TOKEN" ]; then
-            echo "❌ Failed. Response was: $RESPONSE"
-            echo "Auth code expires in 60s — generate a fresh one and retry."
+          if [ -z "$REFRESH_TOKEN" ]; then
+            echo "❌ Failed. Response: $RESPONSE"
             exit 1
           fi
 
           echo ""
-          echo "✅ SUCCESS — copy everything between the lines and save as YOUTUBE_TOKEN_JSON secret"
+          echo "✅ SUCCESS! Copy the JSON below and add as GitHub Secret: YOUTUBE_TOKEN_JSON"
           echo "════════════════════════════════════════"
           python3 -c "
 import json
@@ -49,3 +49,14 @@ print(json.dumps({
 }, indent=2))
 "
           echo "════════════════════════════════════════"
+
+      - name: Delete auth_code.txt after use
+        run: |
+          git config user.name "Mahabharat Bot"
+          git config user.email "bot@mahabharat-shorts.auto"
+          rm config/auth_code.txt
+          git add config/auth_code.txt
+          git commit -m "chore: remove auth code after token exchange [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
