@@ -26,26 +26,29 @@ load_dotenv("config/.env")
 SUNO_API_KEY = os.getenv("SUNO_API_KEY", "")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
 
-# ── Royalty-free tracks (Pixabay) ──────────────────────────────
-# Pre-curated tracks that fit Mahabharat's epic mood
-# All are CC0 / royalty-free for YouTube
+# ── Royalty-free tracks (Internet Archive — reliable direct links) ─
+# All CC0 / Public Domain — safe for YouTube monetization
 PIXABAY_TRACKS = [
     {
-        "name": "Epic Indian War",
-        "url": "https://cdn.pixabay.com/audio/2023/03/09/audio_c3e01564c2.mp3",
+        "name": "Epic Cinematic Battle",
+        "url": "https://ia800202.us.archive.org/3/items/Kevin_MacLeod_-_Dramatic/Kevin_MacLeod_-_Volatile_Reaction.mp3",
         "mood": "battle"
     },
     {
         "name": "Ancient India Ambient",
-        "url": "https://cdn.pixabay.com/audio/2022/10/14/audio_127e816c3c.mp3",
+        "url": "https://ia800202.us.archive.org/3/items/Kevin_MacLeod_-_Dramatic/Kevin_MacLeod_-_Cipher.mp3",
         "mood": "emotional"
     },
     {
         "name": "Dramatic Orchestral",
-        "url": "https://cdn.pixabay.com/audio/2023/01/26/audio_d1718ab86a.mp3",
+        "url": "https://ia800202.us.archive.org/3/items/Kevin_MacLeod_-_Dramatic/Kevin_MacLeod_-_Dark_Times.mp3",
         "mood": "dramatic"
     },
 ]
+
+DOWNLOAD_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+}
 
 # ── Suno music prompt ───────────────────────────────────────────
 SUNO_PROMPT = (
@@ -70,30 +73,52 @@ def get_episode_mood(episode_num: int) -> str:
     return "dramatic"
 
 
+def generate_ffmpeg_fallback(output_path: Path, duration: int = 65) -> Path:
+    """Generate ambient brown-noise BGM using ffmpeg (always available on runner)"""
+    import subprocess
+    print("   ⚠️  Download failed — generating ambient audio via ffmpeg...")
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "lavfi",
+        "-i", f"anoisesrc=d={duration}:c=brown:a=0.3",
+        "-ar", "44100", "-ac", "2",
+        str(output_path)
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+    print(f"   ✅ Ambient BGM generated ({duration}s)")
+    return output_path
+
+
 def download_pixabay_track(episode_num: int, verbose: bool = False) -> Path:
-    """Download a pre-selected royalty-free track"""
+    """Download a pre-selected royalty-free track, fallback to ffmpeg generation"""
     mood = get_episode_mood(episode_num)
 
-    # Pick track matching mood
     track = next(
         (t for t in PIXABAY_TRACKS if t["mood"] == mood),
-        PIXABAY_TRACKS[-1]  # fallback to dramatic
+        PIXABAY_TRACKS[-1]
     )
 
     print(f"\n🎵 Downloading BGM: '{track['name']}' (mood: {mood})")
 
     audio_dir = Path(OUTPUT_DIR) / f"ep-{episode_num:03d}" / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
-
-    response = requests.get(track["url"], timeout=60)
-    response.raise_for_status()
-
     output_path = audio_dir / "bgm.mp3"
-    output_path.write_bytes(response.content)
 
-    size_kb = len(response.content) // 1024
-    print(f"✅ BGM saved: {output_path} ({size_kb}KB)")
-    return output_path
+    # Try each track URL, fallback to ffmpeg if all fail
+    for t in PIXABAY_TRACKS:
+        try:
+            response = requests.get(t["url"], headers=DOWNLOAD_HEADERS, timeout=60)
+            response.raise_for_status()
+            output_path.write_bytes(response.content)
+            size_kb = len(response.content) // 1024
+            print(f"✅ BGM saved: {output_path} ({size_kb}KB)")
+            return output_path
+        except Exception as e:
+            print(f"   ⚠️  {t['name']} failed: {e}")
+            continue
+
+    # All URLs failed — generate with ffmpeg
+    return generate_ffmpeg_fallback(output_path)
 
 
 def generate_suno_track(episode_num: int, verbose: bool = False) -> Path:
