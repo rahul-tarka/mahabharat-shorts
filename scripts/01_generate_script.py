@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Step 01 — Generate episode script using Google Gemini API
+Step 01 — Generate episode script using Groq API (free, fast)
 Usage:
   python3 scripts/01_generate_script.py --episode 1
   python3 scripts/01_generate_script.py --test
@@ -15,15 +15,14 @@ from dotenv import load_dotenv
 
 load_dotenv("config/.env")
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
-MODEL = "gemini-2.0-flash"
+MODEL = "llama-3.3-70b-versatile"
 
 try:
-    from google import genai
-    from google.genai import types
+    from groq import Groq
 except ImportError:
-    print("❌ Run: pip install google-genai")
+    print("❌ Run: pip install groq")
     sys.exit(1)
 
 
@@ -61,26 +60,26 @@ def generate_script(episode_num: int, verbose: bool = False) -> dict:
     system_prompt = load_system_prompt()
     user_message = build_user_message(ep)
 
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = Groq(api_key=GROQ_API_KEY)
 
     if verbose:
         print(f"📖 Episode {episode_num} | Character: {ep['character_focus']}")
-        print(f"🤖 Calling Gemini API ({MODEL})...")
+        print(f"🤖 Calling Groq API ({MODEL})...")
 
-    response = client.models.generate_content(
+    response = client.chat.completions.create(
         model=MODEL,
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            temperature=0.9,
-            max_output_tokens=2000,
-        ),
-        contents=user_message,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": user_message},
+        ],
+        temperature=0.9,
+        max_tokens=2000,
     )
 
-    raw = response.text.strip()
+    raw = response.choices[0].message.content.strip()
 
     if verbose:
-        print("✅ Gemini responded")
+        print("✅ Groq responded")
 
     # Strip markdown fences if present
     if raw.startswith("```"):
@@ -119,16 +118,20 @@ def main():
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
 
-    if not GEMINI_API_KEY:
-        print("❌ GEMINI_API_KEY not set in config/.env")
+    if not GROQ_API_KEY:
+        print("❌ GROQ_API_KEY not set in config/.env")
         sys.exit(1)
 
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = Groq(api_key=GROQ_API_KEY)
 
     if args.test:
-        print(f"🔌 Testing Gemini API ({MODEL})...")
-        response = client.models.generate_content(model=MODEL, contents="Say: OK")
-        print(f"✅ Gemini connected: {response.text.strip()}")
+        print(f"🔌 Testing Groq API ({MODEL})...")
+        r = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": "Say: OK"}],
+            max_tokens=5,
+        )
+        print(f"✅ Groq connected: {r.choices[0].message.content.strip()}")
         return
 
     if not args.episode:

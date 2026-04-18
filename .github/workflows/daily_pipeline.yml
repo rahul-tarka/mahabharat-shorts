@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p config logs output
           cat > config/.env << 'EOF'
-          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
           OUTPUT_DIR=output
           LOG_DIR=logs
           PUBLISH_TIME_UTC=02:30
