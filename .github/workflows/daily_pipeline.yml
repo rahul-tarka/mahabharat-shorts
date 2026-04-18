@@ -60,14 +60,13 @@ jobs:
           mkdir -p config logs output
           cat > config/.env << 'EOF'
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-          IDEOGRAM_API_KEY=${{ secrets.IDEOGRAM_API_KEY }}
-          ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
-          ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}
-          SUNO_API_KEY=${{ secrets.SUNO_API_KEY }}
           OUTPUT_DIR=output
           LOG_DIR=logs
           PUBLISH_TIME_UTC=02:30
           EOF
+          # Images  → Pollinations.ai (no key needed)
+          # Voice   → Microsoft Edge TTS (no key needed)
+          # Music   → Pixabay tracks (no key needed)
 
       # ── Write YouTube credentials from secrets ───────────────
       - name: Write YouTube credentials

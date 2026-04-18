@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Step 02 — Generate 5 cinematic scene images using Ideogram API
+Step 02 — Generate 5 cinematic scene images using Pollinations.ai (free, no API key)
 Usage:
   python3 scripts/02_generate_images.py --episode 2
   python3 scripts/02_generate_images.py --episode 2 --verbose
@@ -9,8 +9,9 @@ Usage:
 import argparse
 import json
 import os
-import sys
 import time
+import urllib.parse
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -18,7 +19,6 @@ from dotenv import load_dotenv
 
 load_dotenv("config/.env")
 
-IDEOGRAM_API_KEY = os.getenv("IDEOGRAM_API_KEY")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
 
 # ── Style suffix appended to every prompt ──────────────────────
@@ -30,7 +30,6 @@ STYLE_SUFFIX = (
 )
 
 # ── Character seed prompts for visual consistency ───────────────
-# These are appended to ensure the same character looks consistent
 CHARACTER_SEEDS = {
     "Yudhishthira": "noble Indian warrior king, golden crown, bronze armor, kind eyes, slight beard",
     "Krishna": "dark blue-black skin, peacock feather crown, calm divine expression, yellow dhoti",
@@ -41,6 +40,9 @@ CHARACTER_SEEDS = {
     "Duryodhana": "powerful muscular Indian prince, dark armor, confident dangerous expression",
     "Drona": "wise elderly guru, white dhoti, calm eyes, wooden staff",
 }
+
+# Pollinations.ai endpoint
+POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
 
 
 def load_script(episode_num: int) -> dict:
@@ -57,11 +59,7 @@ def load_script(episode_num: int) -> dict:
 
 def build_full_prompt(base_prompt: str, characters: list[str]) -> str:
     """Append style suffix and character seeds to base prompt"""
-    seed_additions = []
-    for char in characters:
-        if char in CHARACTER_SEEDS:
-            seed_additions.append(CHARACTER_SEEDS[char])
-
+    seed_additions = [CHARACTER_SEEDS[c] for c in characters if c in CHARACTER_SEEDS]
     full_prompt = base_prompt
     if seed_additions:
         full_prompt += ", " + ", ".join(seed_additions)
@@ -69,44 +67,21 @@ def build_full_prompt(base_prompt: str, characters: list[str]) -> str:
     return full_prompt
 
 
-def generate_image(prompt: str, scene_num: int, verbose: bool = False) -> bytes:
-    """Call Ideogram API and return image bytes"""
-    headers = {
-        "Api-Key": IDEOGRAM_API_KEY,
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "image_request": {
-            "prompt": prompt,
-            "aspect_ratio": "ASPECT_9_16",   # 9:16 for Shorts
-            "model": "V_2",
-            "magic_prompt_option": "OFF",     # Use our prompt as-is
-            "style_type": "REALISTIC",
-        }
-    }
-
-    if verbose:
-        print(f"   📡 Calling Ideogram API for Scene {scene_num}...")
-
-    response = requests.post(
-        "https://api.ideogram.ai/generate",
-        headers=headers,
-        json=payload,
-        timeout=120,
+def generate_image(prompt: str, scene_num: int, episode_num: int, verbose: bool = False) -> bytes:
+    """Call Pollinations.ai and return image bytes. No API key required."""
+    encoded_prompt = urllib.parse.quote(prompt)
+    # Use episode+scene as seed for reproducibility; nologo removes watermark
+    url = (
+        POLLINATIONS_URL.format(prompt=encoded_prompt)
+        + f"?width=1080&height=1920&model=flux&nologo=true&seed={episode_num * 100 + scene_num}"
     )
 
-    if response.status_code != 200:
-        raise RuntimeError(
-            f"Ideogram API error {response.status_code}: {response.text}"
-        )
+    if verbose:
+        print(f"   URL: {url[:100]}...")
 
-    data = response.json()
-    image_url = data["data"][0]["url"]
-
-    # Download image from URL
-    img_response = requests.get(image_url, timeout=60)
-    img_response.raise_for_status()
-    return img_response.content
+    response = requests.get(url, timeout=180)
+    response.raise_for_status()
+    return response.content
 
 
 def generate_all_images(episode_num: int, verbose: bool = False):
@@ -115,20 +90,16 @@ def generate_all_images(episode_num: int, verbose: bool = False):
     ep_dir.mkdir(parents=True, exist_ok=True)
 
     image_prompts = script.get("image_prompts", [])
-    characters = script.get("character_focus", "").split(",") if isinstance(
-        script.get("character_focus"), str
-    ) else []
-
-    # Extract characters from episode plan if available
-    ep_characters = [c.strip() for c in characters]
+    character_focus = script.get("character_focus", "")
+    ep_characters = [c.strip() for c in character_focus.split(",") if c.strip()]
 
     print(f"\n🖼️  Generating {len(image_prompts)} scene images for Episode {episode_num}...")
+    print("   Provider: Pollinations.ai (free, no API key)")
 
     results = []
     for i, item in enumerate(image_prompts, 1):
         scene_num = item.get("scene", i)
         base_prompt = item.get("prompt", "")
-
         full_prompt = build_full_prompt(base_prompt, ep_characters)
 
         if verbose:
@@ -137,16 +108,16 @@ def generate_all_images(episode_num: int, verbose: bool = False):
 
         try:
             print(f"   ⏳ Scene {scene_num}/{len(image_prompts)} generating...", end="", flush=True)
-            image_bytes = generate_image(full_prompt, scene_num, verbose=verbose)
+            image_bytes = generate_image(full_prompt, scene_num, episode_num, verbose=verbose)
 
             output_path = ep_dir / f"scene_{scene_num:02d}.jpg"
             output_path.write_bytes(image_bytes)
             print(f" ✅ saved ({len(image_bytes)//1024}KB)")
             results.append(str(output_path))
 
-            # Respect rate limits — Ideogram allows ~5 req/min on free tier
+            # Pollinations recommends ~5s between requests on free tier
             if i < len(image_prompts):
-                time.sleep(13)  # ~4.5 req/min to stay safe
+                time.sleep(6)
 
         except Exception as e:
             print(f" ❌ Failed: {e}")
@@ -155,10 +126,9 @@ def generate_all_images(episode_num: int, verbose: bool = False):
     # Save image manifest
     manifest = {
         "episode": episode_num,
-        "generated_at": __import__("datetime").datetime.now().isoformat(),
-        "images": [
-            {"scene": i + 1, "path": p} for i, p in enumerate(results)
-        ]
+        "generated_at": datetime.now().isoformat(),
+        "provider": "pollinations.ai",
+        "images": [{"scene": i + 1, "path": p} for i, p in enumerate(results)],
     }
     manifest_path = Path(OUTPUT_DIR) / f"ep-{episode_num:03d}" / "image_manifest.json"
     with open(manifest_path, "w") as f:
@@ -171,14 +141,10 @@ def generate_all_images(episode_num: int, verbose: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate scene images")
+    parser = argparse.ArgumentParser(description="Generate scene images via Pollinations.ai (free)")
     parser.add_argument("--episode", type=int, required=True)
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
-
-    if not IDEOGRAM_API_KEY:
-        print("❌ IDEOGRAM_API_KEY not set. Check config/.env")
-        sys.exit(1)
 
     generate_all_images(args.episode, verbose=args.verbose)
 

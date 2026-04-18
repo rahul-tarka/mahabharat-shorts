@@ -84,15 +84,17 @@ cp config/.env.example config/.env
 
 ## Phase 2 — API Keys Setup
 
-### APIs required
+### APIs used (all free)
 
-| Service | Purpose | Free Tier | Signup |
+| Service | Purpose | Cost | Key Required? |
 |---|---|---|---|
-| Google Gemini | Script generation | Free tier available | aistudio.google.com |
-| Ideogram | Scene images (5 per episode) | 25 free/day | ideogram.ai |
-| ElevenLabs | Hindi voiceover | 10k chars/month | elevenlabs.io |
-| YouTube Data API v3 | Upload videos | Free (quota-limited) | console.cloud.google.com |
-| Suno (optional) | Background music | 50 songs/day free | suno.com |
+| Google Gemini | Script generation | Free tier, no CC | Yes |
+| Pollinations.ai | Scene images (5 per episode) | Completely free | No |
+| Microsoft Edge TTS | Hindi voiceover (`hi-IN-MadhurNeural`) | Completely free | No |
+| Pixabay | Background music (royalty-free) | Completely free | No |
+| YouTube Data API v3 | Upload videos | Free (quota: ~6 uploads/day) | OAuth only |
+
+**Only one API key is needed:** Gemini.
 
 ### Fill in your keys
 
@@ -100,14 +102,11 @@ cp config/.env.example config/.env
 nano config/.env   # or: code config/.env
 ```
 
-Key variables:
 ```
-GEMINI_API_KEY=...
-IDEOGRAM_API_KEY=...
-ELEVENLABS_API_KEY=...
-ELEVENLABS_VOICE_ID=...        # find with: python3 scripts/03_generate_voice.py --list-voices
-SUNO_API_KEY=...               # optional
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
+
+Get it from aistudio.google.com — free, no credit card required.
 
 ---
 
@@ -168,13 +167,11 @@ The pipeline runs automatically every day at **2:00 AM UTC (7:30 AM IST)**.
 
 | Secret | Value |
 |---|---|
-| `GEMINI_API_KEY` | Your Gemini API key |
-| `IDEOGRAM_API_KEY` | Your Ideogram API key |
-| `ELEVENLABS_API_KEY` | Your ElevenLabs API key |
-| `ELEVENLABS_VOICE_ID` | Your ElevenLabs voice ID |
-| `SUNO_API_KEY` | Your Suno key (optional) |
+| `GEMINI_API_KEY` | Your Gemini API key (from aistudio.google.com) |
 | `YOUTUBE_TOKEN_JSON` | Contents of `config/token.json` |
 | `YOUTUBE_CLIENT_SECRET_JSON` | Contents of `config/client_secret.json` |
+
+Images, voice, and music require no secrets — they use free services with no API keys.
 
 3. Push to `main` — Actions will handle the rest.
 
