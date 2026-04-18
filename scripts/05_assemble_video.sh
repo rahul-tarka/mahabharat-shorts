@@ -70,7 +70,7 @@ for i in $(seq 1 "$SCENE_COUNT"); do
   # Ken Burns: slow zoom-in with slight pan
   # zoompan: zoom from 1.0 to 1.06 over 300 frames, pan center
   ffmpeg -y -loop 1 -i "${IMG_FILE}" \
-    -vf "scale=1080:1920:force_original_aspect_ratio=cover,crop=1080:1920,\
+    -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,\
 zoompan=z='min(zoom+0.0002,1.06)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=300:s=1080x1920:fps=30,\
 format=yuv420p" \
     -t "${CLIP_DURATION}" \
