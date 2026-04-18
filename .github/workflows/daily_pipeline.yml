@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p config logs output
           cat > config/.env << 'EOF'
-          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
           IDEOGRAM_API_KEY=${{ secrets.IDEOGRAM_API_KEY }}
           ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}
