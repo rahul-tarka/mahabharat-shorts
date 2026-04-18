@@ -1,177 +1,228 @@
-# 🎬 Mahabharat Shorts — Daily Auto-Publishing Pipeline
+# Mahabharat Shorts — Daily Auto-Publishing Pipeline
 
-> Script → Character Images → Voice → Video → Thumbnail → YouTube Upload  
-> Fully automated. Runs daily. Zero manual work after setup.
+> Script → Scene Images → Voice → Music → Video → Thumbnail → YouTube Upload
+> Fully automated. Runs daily via GitHub Actions. Zero manual work after setup.
 
 ---
 
-## 🗂️ Project Structure
+## Project Status
+
+| Item | State |
+|---|---|
+| Episodes defined | 10 of 30 planned |
+| Episodes completed | 1 (Episode 1 — Kurukshetra dawn) |
+| Episodes pending | 9 (Episodes 2–10) |
+| Automation | GitHub Actions — daily at 2:00 AM UTC (7:30 AM IST) |
+
+---
+
+## Project Structure
 
 ```
 mahabharat-shorts/
 ├── config/
 │   ├── .env.example          ← Copy to .env, fill API keys
-│   └── episode_plan.json     ← Episode schedule (arc, character, theme)
+│   └── episode_plan.json     ← Episode schedule (arc, character, theme, status)
 ├── scripts/
-│   ├── 01_generate_script.py    ← Claude API → Script JSON
+│   ├── 01_generate_script.py    ← Gemini API → Script JSON
 │   ├── 02_generate_images.py    ← Ideogram API → 5 scene images
 │   ├── 03_generate_voice.py     ← ElevenLabs API → voiceover.mp3
 │   ├── 04_generate_music.py     ← Suno / Pixabay BGM
 │   ├── 05_assemble_video.sh     ← FFmpeg → final 1080x1920 Short
 │   ├── 06_create_thumbnail.py   ← PIL → thumbnail 1280x720
 │   ├── 07_upload_youtube.py     ← YouTube Data API v3 → upload
-│   └── run_pipeline.py          ← Master runner (calls all steps)
+│   └── run_pipeline.py          ← Master runner (calls all steps in sequence)
 ├── prompts/
-│   └── script_system_prompt.txt ← Claude system prompt template
-├── n8n/
-│   └── workflow.json            ← Import into n8n (optional GUI)
+│   └── script_system_prompt.txt ← Gemini system prompt template
 ├── ffmpeg/
-│   └── fonts/                   ← NotoSansDevanagari.ttf goes here
+│   └── fonts/                   ← NotoSansDevanagari-Bold.ttf (downloaded by setup_mac.sh)
+├── n8n/
+│   └── workflow.json            ← Import into n8n (optional GUI alternative to GitHub Actions)
 ├── .github/
 │   └── workflows/
-│       └── daily_pipeline.yml   ← GitHub Actions cron (alternative to n8n)
-├── output/                      ← Auto-created. Stores episode assets
+│       └── daily_pipeline.yml   ← GitHub Actions cron — runs daily, pushes to YouTube
+├── output/                      ← Auto-created. Stores episode assets (ep-001/, ep-002/, ...)
+├── logs/                        ← Auto-created. Pipeline run logs
+├── setup_mac.sh                 ← One-command Mac setup script
 └── requirements.txt
 ```
 
 ---
 
-## ⚙️ Phase 1 — Mac Prerequisites (One-time setup)
+## Phase 1 — Mac Prerequisites (One-time setup)
 
-### Step 1.1 — Install Homebrew (if not already)
+### Option A — Automated (recommended)
+
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+bash setup_mac.sh
 ```
 
-### Step 1.2 — Install system dependencies
-```bash
-brew install python@3.11 ffmpeg imagemagick git
-brew install node  # for n8n
-```
+This installs Homebrew if missing, installs Python 3.11 + FFmpeg, creates a venv, installs Python deps, downloads the Hindi font, creates `output/` and `logs/`, and copies `.env.example` to `.env`.
 
-### Step 1.3 — Verify installs
-```bash
-python3 --version    # Should be 3.11+
-ffmpeg -version      # Should show version
-convert --version    # ImageMagick
-```
+### Option B — Manual
 
-### Step 1.4 — Download Hindi font for subtitles
 ```bash
-# In project root
+# 1. Install system dependencies
+brew install python@3.11 ffmpeg git
+
+# 2. Create venv and install Python deps
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Download Hindi font for subtitles
 mkdir -p ffmpeg/fonts
-curl -L "https://github.com/google/fonts/raw/main/ofl/notosansdevanagari/NotoSansDevanagari-Bold.ttf" \
+curl -sL "https://github.com/google/fonts/raw/main/ofl/notosansdevanagari/NotoSansDevanagari-Bold.ttf" \
   -o ffmpeg/fonts/NotoSansDevanagari-Bold.ttf
+
+# 4. Create directories and copy env template
+mkdir -p output logs
+cp config/.env.example config/.env
 ```
 
 ---
 
-## 🔑 Phase 2 — API Keys Setup
+## Phase 2 — API Keys Setup
 
-### APIs you need (all have free tiers to start):
+### APIs required
 
 | Service | Purpose | Free Tier | Signup |
 |---|---|---|---|
-| Anthropic | Script generation | $5 free credit | console.anthropic.com |
-| Ideogram | Scene images | 25 free/day | ideogram.ai |
-| ElevenLabs | Hindi voiceover | 10k chars/mo | elevenlabs.io |
-| YouTube Data API | Upload videos | Free (quota) | console.cloud.google.com |
-| Suno (optional) | BGM music | 50 songs/day free | suno.com |
+| Google Gemini | Script generation | Free tier available | aistudio.google.com |
+| Ideogram | Scene images (5 per episode) | 25 free/day | ideogram.ai |
+| ElevenLabs | Hindi voiceover | 10k chars/month | elevenlabs.io |
+| YouTube Data API v3 | Upload videos | Free (quota-limited) | console.cloud.google.com |
+| Suno (optional) | Background music | 50 songs/day free | suno.com |
 
-### Step 2.1 — Copy env file
-```bash
-cp config/.env.example config/.env
-```
+### Fill in your keys
 
-### Step 2.2 — Fill in your API keys
 ```bash
 nano config/.env   # or: code config/.env
 ```
 
----
-
-## 📦 Phase 3 — Python Setup
-
-### Step 3.1 — Create virtual environment
-```bash
-cd mahabharat-shorts
-python3 -m venv venv
-source venv/bin/activate
+Key variables:
 ```
-
-### Step 3.2 — Install dependencies
-```bash
-pip install -r requirements.txt
+GEMINI_API_KEY=...
+IDEOGRAM_API_KEY=...
+ELEVENLABS_API_KEY=...
+ELEVENLABS_VOICE_ID=...        # find with: python3 scripts/03_generate_voice.py --list-voices
+SUNO_API_KEY=...               # optional
 ```
-
-### Step 3.3 — Test Claude connection
-```bash
-python3 scripts/01_generate_script.py --test
-```
-Expected output: `✅ Claude API connected. Episode 1 script generated.`
 
 ---
 
-## 🔐 Phase 4 — YouTube OAuth Setup (one-time)
+## Phase 3 — YouTube OAuth Setup (one-time)
 
 ```bash
 # 1. Go to: https://console.cloud.google.com
 # 2. Create project → Enable "YouTube Data API v3"
-# 3. Create OAuth 2.0 credentials → Desktop app
+# 3. Create OAuth 2.0 credentials → Desktop App
 # 4. Download client_secret.json → put in config/
-# 5. Run auth flow once:
+# 5. Run the auth flow once:
 python3 scripts/07_upload_youtube.py --auth
-# Browser opens → sign in → paste code → token saved to config/token.json
+# Browser opens → sign in → token saved to config/token.json
 ```
 
 ---
 
-## 🚀 Phase 5 — Run Your First Episode
+## Phase 4 — Run Your First Episode
 
 ```bash
 source venv/bin/activate
 
-# Run full pipeline for episode 1:
-python3 scripts/run_pipeline.py --episode 1
+# Full pipeline for a specific episode:
+python3 scripts/run_pipeline.py --episode 2
 
-# Or run individual steps:
-python3 scripts/01_generate_script.py --episode 1
-python3 scripts/02_generate_images.py --episode 1
-python3 scripts/03_generate_voice.py --episode 1
-bash scripts/05_assemble_video.sh 1
-python3 scripts/07_upload_youtube.py --episode 1
+# Auto-pick next pending episode:
+python3 scripts/run_pipeline.py --next
+
+# Test without uploading to YouTube:
+python3 scripts/run_pipeline.py --episode 2 --skip-upload
+
+# Resume from a specific step after a failure:
+python3 scripts/run_pipeline.py --episode 2 --from-step 3
+```
+
+### Run individual steps
+
+```bash
+python3 scripts/01_generate_script.py --episode 2
+python3 scripts/02_generate_images.py --episode 2
+python3 scripts/03_generate_voice.py --episode 2
+python3 scripts/04_generate_music.py --episode 2
+bash   scripts/05_assemble_video.sh 2
+python3 scripts/06_create_thumbnail.py --episode 2
+python3 scripts/07_upload_youtube.py --episode 2
 ```
 
 ---
 
-## ⏰ Phase 6 — Daily Auto-Run (2 options)
+## Phase 5 — Daily Auto-Run via GitHub Actions
 
-### Option A — Mac cron (simple, local machine must be on)
-```bash
-crontab -e
-# Add this line:
-0 2 * * * cd /path/to/mahabharat-shorts && source venv/bin/activate && python3 scripts/run_pipeline.py --next >> logs/pipeline.log 2>&1
-```
+The pipeline runs automatically every day at **2:00 AM UTC (7:30 AM IST)**.
 
-### Option B — GitHub Actions (recommended, runs in cloud)
-Already configured in `.github/workflows/daily_pipeline.yml`
-```bash
-# Push to GitHub → Actions runs daily at 2 AM IST → uploads to YouTube
-git push origin main
-# Set secrets in: GitHub repo → Settings → Secrets
-```
+### Setup
+
+1. Push the repo to GitHub.
+2. Go to **Settings → Secrets and variables → Actions** and add:
+
+| Secret | Value |
+|---|---|
+| `GEMINI_API_KEY` | Your Gemini API key |
+| `IDEOGRAM_API_KEY` | Your Ideogram API key |
+| `ELEVENLABS_API_KEY` | Your ElevenLabs API key |
+| `ELEVENLABS_VOICE_ID` | Your ElevenLabs voice ID |
+| `SUNO_API_KEY` | Your Suno key (optional) |
+| `YOUTUBE_TOKEN_JSON` | Contents of `config/token.json` |
+| `YOUTUBE_CLIENT_SECRET_JSON` | Contents of `config/client_secret.json` |
+
+3. Push to `main` — Actions will handle the rest.
+
+### Manual trigger
+
+Go to **Actions → Daily Mahabharat Shorts Pipeline → Run workflow** and optionally specify:
+- **Episode number** (leave blank for auto-next)
+- **Skip upload** (for dry-run testing)
+- **Start from step** (to resume after a failed run)
+
+After each successful run, `config/episode_plan.json` is committed back with the episode marked `done`.
 
 ---
 
-## 📊 Monitor & Debug
+## Monitor & Debug
 
 ```bash
-# View today's log
+# View live log
 tail -f logs/pipeline.log
 
-# Check output folder
-ls -la output/ep-001/
+# Check episode output folder
+ls -la output/ep-002/
 
-# Test a single step with verbose output
-python3 scripts/01_generate_script.py --episode 1 --verbose
+# Test Gemini API connection
+python3 scripts/01_generate_script.py --test
+
+# List available ElevenLabs voices
+python3 scripts/03_generate_voice.py --list-voices
 ```
+
+Artifacts (output files + logs) are also uploaded to GitHub Actions for 7 days after each run.
+
+---
+
+## Episode Plan
+
+Defined episodes are in [config/episode_plan.json](config/episode_plan.json). Each entry has:
+
+```json
+{
+  "episode": 2,
+  "title_hint": "Yudhishthira bows to Bhishma before battle",
+  "character_focus": "Yudhishthira, Bhishma",
+  "arc": "Kurukshetra War - Day 1",
+  "emotional_core": "reverence vs war",
+  "cliffhanger_setup": "Bhishma grants a boon — what does he ask?",
+  "status": "pending"
+}
+```
+
+Status values: `pending` → picked up by `--next` flag | `done` → skipped.
