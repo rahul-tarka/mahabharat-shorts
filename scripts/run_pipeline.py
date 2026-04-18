@@ -131,6 +131,7 @@ def run_pipeline(episode_num: int, skip_upload: bool = False, from_step: int = 1
         print(f"✅ PIPELINE COMPLETE — Episode {episode_num}")
         print(f"   Total time: {minutes}m {seconds}s")
         print(f"   Output: output/ep-{episode_num:03d}/")
+        print("═" * 60)
 
         # Mark episode as done in plan
         mark_episode_done(episode_num)
@@ -139,7 +140,8 @@ def run_pipeline(episode_num: int, skip_upload: bool = False, from_step: int = 1
         print(f"❌ PIPELINE FAILED at Step {failed_steps[0][0]}: {failed_steps[0][1]}")
         print(f"   Time elapsed before failure: {minutes}m {seconds}s")
         print(f"\n   To resume: python3 scripts/run_pipeline.py --episode {episode_num} --from-step {failed_steps[0][0]}")
-    print("═" * 60)
+        print("═" * 60)
+        sys.exit(1)  # Non-zero exit so GitHub Actions marks the job as failed
 
 
 def main():
