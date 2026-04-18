@@ -17,11 +17,13 @@ load_dotenv("config/.env")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
+MODEL = "gemini-2.0-flash"
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 except ImportError:
-    print("❌ Run: pip install google-generativeai")
+    print("❌ Run: pip install google-genai")
     sys.exit(1)
 
 
@@ -59,21 +61,22 @@ def generate_script(episode_num: int, verbose: bool = False) -> dict:
     system_prompt = load_system_prompt()
     user_message = build_user_message(ep)
 
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        system_instruction=system_prompt,
-        generation_config=genai.GenerationConfig(
-            temperature=0.9,
-            max_output_tokens=2000,
-        )
-    )
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
     if verbose:
         print(f"📖 Episode {episode_num} | Character: {ep['character_focus']}")
-        print("🤖 Calling Gemini API...")
+        print(f"🤖 Calling Gemini API ({MODEL})...")
 
-    response = model.generate_content(user_message)
+    response = client.models.generate_content(
+        model=MODEL,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=0.9,
+            max_output_tokens=2000,
+        ),
+        contents=user_message,
+    )
+
     raw = response.text.strip()
 
     if verbose:
@@ -84,7 +87,7 @@ def generate_script(episode_num: int, verbose: bool = False) -> dict:
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
-    
+
     return json.loads(raw.strip())
 
 
@@ -120,12 +123,12 @@ def main():
         print("❌ GEMINI_API_KEY not set in config/.env")
         sys.exit(1)
 
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
     if args.test:
-        print("🔌 Testing Gemini API...")
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        r = model.generate_content("Say: OK")
-        print(f"✅ Gemini connected: {r.text.strip()}")
+        print(f"🔌 Testing Gemini API ({MODEL})...")
+        response = client.models.generate_content(model=MODEL, contents="Say: OK")
+        print(f"✅ Gemini connected: {response.text.strip()}")
         return
 
     if not args.episode:
